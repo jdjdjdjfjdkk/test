@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean HLS Player (No Seek Back)</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script> 
+
+    <style>
+        /* ශරීරය කළු පසුබිමක් සහිතව මධ්‍යගත කරන්න */
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            flex-direction: column; 
+        }
+
+        /* වීඩියෝ කන්ටේනරය */
+        .player-container {
+            position: relative;
+            width: 900px; /* උපරිම පළල සකසන්න */
+            max-width: 95%; 
+            margin: auto;
+        }
+
+        /* වීඩියෝ ටැගය: controls attribute එක එලෙසම තබා ඇත */
+        .video-window {
+            width: 100%;
+            display: block;
+            aspect-ratio: 16 / 9; 
+            background: #111;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <video id="liveVideoPlayer" class="video-window" controls autoplay muted playsinline>
+            
+        </video>
+    </div>
+
+    <script>
+        // ඔබ ලබා දුන් සජීවී ප්‍රවාහයේ සබැඳිය
+        const videoUrl = 'http://178.33.239.54:8080/503a/index.m3u8';
+        const video = document.getElementById('liveVideoPlayer');
+
+        // HLS.js හරහා වීඩියෝව පූරණය කිරීම
+        if (Hls.isSupported()) {
+            var hls = new Hls();
+            
+            hls.loadSource(videoUrl);
+            hls.attachMedia(video);
+            
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play().catch(error => {
+                    console.warn("Autoplay was prevented by the browser. User must click to play.", error);
+                });
+            });
+            
+            // ==========================================================
+            // පිටුපසට යාම වළක්වන කේතය (අවම වෙනස්කම)
+            // ==========================================================
+            video.addEventListener('seeking', function() {
+                // Seek Position එක Live Edge එකට වඩා අඩු නම්, නැවත Live Edge එකට සකසන්න
+                if (hls.currentLevel !== -1) { // Auto Mode එකේ නැතිනම්
+                    // video.currentTime Live Edge එකට වඩා පසුපසින් තිබේ නම්
+                    if (video.currentTime < hls.liveSyncPosition) {
+                        video.currentTime = hls.liveSyncPosition;
+                    }
+                }
+            });
+            // ==========================================================
+            
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari වැනි ස්වදේශීය HLS සහාය දක්වන බ්‍රව්සර් සඳහා
+            video.src = videoUrl;
+            video.addEventListener('loadedmetadata', function() {
+                video.play();
+            });
+            
+            // Safari ස්වදේශීයව seekbar පෙන්වයි. එය අක්‍රිය කිරීමට වෙනත් ක්‍රම අවශ්‍ය වේ.
+            // කෙසේ වෙතත්, මෙය "Seeking" වලක්වන ක්‍රමයයි.
+            video.addEventListener('seeking', function() {
+                // සජීවී ප්‍රවාහයක් නම්, වත්මන් වේලාවට ආසන්නව තබා ගන්න.
+                if (video.duration === Infinity) { 
+                    video.currentTime = video.duration - 1; // Live edge එකට ආසන්නම අගය
+                }
+            });
+            
+        } else {
+            console.error("HLS is not supported by this browser.");
+        }
+    </script>
+</body>
+</html>
